@@ -10,9 +10,6 @@ This repository contains the material that is needed to perform and publish the 
 - README.md  
 It contains the knowledge of this repository.
 
-- coursera_pml.Rproj  
-It contains the working environment setting.
-
 - Prediction Assignment Writeup.Rmd  
 It contains the analysis and the associated text that explains things.
 
