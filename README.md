@@ -1,6 +1,5 @@
 # Repository
-coursera_practicalmachinelearning_practicalassignmentwriteup_09152020
-(place_thing_object_time)
+coursera_practicalmachinelearning_practicalassignmentwriteup_09152020 (place_thing_object_time)
 
 # Coursera Project
 Coursera - Data Science Specialization - Johns Hopkins University
