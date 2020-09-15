@@ -5,14 +5,209 @@ date: "9/13/2020"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## 1. Overview
 
-1. data preprocessing
-2. model training
-3. model testing
-3. model stacking
-4. model evaluating
+- Platform: Coursera
+- Course: Practical Machine Learning
+- Task: Week 4 Final Project
+- Location: Texas, USA
+- Link: [www.coursera.org/learn/practical-machine-learning/](https://www.coursera.org/learn/practical-machine-learning/)
+
+## 2. Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These types of devices are part of the quantified self-movement. A group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+## 3. Data Loading and Exploratory Analysis
+
+### a. Data Source
+
+The training data and the testing data are below:
+
+- Training set ([Download](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv))
+- Test set ([Download](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv))
+
+### b. Environment Setup
+
+```{r, message = F}
+if(!require("pacman")) install.packages("pacman")
+pacman::p_load(knitr, caret, rpart, rpart.plot, rattle, randomForest, gbm, corrplot)
+options(digits = 3)
+set.seed(0323)
+```
+
+### c. Data Loading and Cleaning
+
+```{r}
+# link set
+train.file = "pml-training.csv"
+test.file = "pml-testing.csv"
+
+# download dataset
+train = read.csv(train.file)
+test = read.csv(test.file) # real testing
+
+# partition dataset
+in.train = createDataPartition(train$classe, p = 0.7, list = F)
+train.set = train[in.train, ] # training / validating
+test.set = train[-in.train, ] # testing
+
+# check dataset
+dim(train.set); dim(test.set)
+```
+
+Firstly, we are gonna clean the NA variables and identification variables. Importantly, the test dataset is not changed and will only be used for the quiz results generation.
+
+```{r}
+# near zero variance
+nzv = nearZeroVar(train.set)
+train.set = train.set[, -nzv]
+test.set = test.set[, -nzv]
+
+# check dataset
+dim(train.set); dim(test.set)
+```
+
+There are 52 variables as near zero variance, which are meaningless for modeling.
+
+```{r}
+# mostly NA variable
+near.na = sapply(train.set, function(x) mean(is.na(x))) > 0.95
+train.set = train.set[, near.na == F]
+test.set = test.set[, near.na == F]
+
+# check dataset
+dim(train.set); dim(test.set)
+```
+
+There are 7 variables as mostly NA variable, which are useless for modeling.
+
+```{r}
+# identification variable
+train.set = train.set[, -c(1:5)]
+test.set = test.set[, -c(1:5)]
+
+# check dataset
+dim(train.set); dim(test.set)
+```
+
+AFter cleaning, we can see the ready-to-analysis dataset has 53 variables as independent and 1 variable as dependent.
+
+### d. Exploring Data Analysis
+
+```{r}
+cor.matrix = cor(train.set[, -54])
+corrplot(cor.matrix, order = "FPC", method = "color", type = "lower",
+         tl.cex = 0.6, tl.col = rgb(0, 0, 0))
+```
+
+A correlation among variables is analysed before modeling. If the correlations are quite more, a principal components analysis (PCA) could be performed as processing step to make an even more compact analysis. However, the plot shows quite a few correlations. PCA will not be applied.
+
+## 4. Model Building
+
+We are gonna use three methods to build up models and even stack them together. The methods are random forest, decision tree, and generalized boosted model.
+
+### a. Random Forest
+
+```{r}
+# fit model
+fit.rf = train(data = train.set,
+               classe ~ .,
+               method = "rf",
+               trControl = trainControl(method = "cv",
+                                        number = 3,
+                                        verboseIter = FALSE))
+
+# train model
+mod.rf = fit.rf$finalModel
+mod.rf
+
+# test model
+pred.rf = predict(fit.rf, newdata = test.set)
+
+# evaluate model
+cm.rf = confusionMatrix(table(pred.rf, test.set$classe))
+
+# plot matrix result
+plot(cm.rf$table, col = cm.rf$byClass,
+     main = "Random Forest",
+     sub = paste("Accuracy =", round(cm.rf$overall[1], 4)),
+     xlab = "Prediction",
+     ylab = "Reference")
+```
+
+### b. Decision Tree
+
+```{r}
+# fit model
+fit.dt = train(data = train.set,
+               classe ~ .,
+               method = "rpart",
+               trControl = trainControl(method = "cv",
+                                        number = 3,
+                                        verboseIter = FALSE))
+
+# train model
+mod.dt = fit.dt$finalModel
+# fancyRpartPlot(mod.dt) # optional
+
+# test model
+pred.dt = predict(fit.dt, newdata = test.set)
+
+# evaluate model
+cm.dt = confusionMatrix(table(pred.dt, test.set$classe))
+
+# plot matrix result
+plot(cm.dt$table, col = cm.dt$byClass,
+     main = "Decision Tree",
+     sub = paste("Accuracy =", round(cm.dt$overall[1], 4)),
+     xlab = "Prediction",
+     ylab = "Reference")
+```
+
+### c. Generalized Boosted Model
+
+```{r}
+# fit model
+fit.gbm = train(data = train.set,
+                classe ~ .,
+                method = "gbm",
+                trControl = trainControl(method = "repeatedcv",
+                                         number = 5,
+                                         repeats = 1,
+                                         verboseIter = FALSE))
+
+# train model
+mod.gbm = fit.gbm$finalModel
+
+# test model
+pred.gbm = predict(fit.gbm, newdata = test.set)
+
+# evaluate model
+cm.gbm = confusionMatrix(table(pred.gbm, test.set$classe))
+
+# plot matrix result
+plot(cm.gbm$table, col = cm.gbm$byClass,
+     main = "Generalized Boosted Model",
+     sub = paste("Accuracy =", round(cm.gbm$overall[1], 4)),
+     xlab = "Prediction",
+     ylab = "Reference")
+```
+
+## 4. Model Building
+
+The accuracy of the 3 modeling methods above are:
+
+- Random Forest (0.9973)
+- Decision Tree (0.4901)
+- Generalized Boosted Model (0.9866)
+
+```{r}
+pred.test = predict(fit.rf, newdata = test)
+pred.test
+```
+
+The random forest model will be applied to predict the 20 quiz results as shown above.
