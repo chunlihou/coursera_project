@@ -1,7 +1,7 @@
 ---
 title: "Prediction Assignment Writeup"
 author: "Chun-Li Hou"
-date: "9/13/2020"
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
@@ -34,9 +34,9 @@ The training data and the testing data are below:
 
 ```{r, message = F}
 if(!require("pacman")) install.packages("pacman")
-pacman::p_load(knitr, caret, rpart, rpart.plot, rattle, randomForest, gbm, corrplot)
+pacman::p_load(knitr, corrplot, caret, randomForest, rattle, gbm)
 options(digits = 3)
-set.seed(0323)
+set.seed(123)
 ```
 
 ### c. Data Loading and Cleaning
@@ -48,15 +48,15 @@ test.file = "pml-testing.csv"
 
 # download dataset
 train = read.csv(train.file)
-test = read.csv(test.file) # real testing
+test = read.csv(test.file)
 
 # partition dataset
 in.train = createDataPartition(train$classe, p = 0.7, list = F)
-train.set = train[in.train, ] # training / validating
-test.set = train[-in.train, ] # testing
+train.set = train[in.train, ]
+test.set = train[-in.train, ]
 
 # check dataset
-dim(train.set); dim(test.set)
+dim(train.set)
 ```
 
 Firstly, we are gonna clean the NA variables and identification variables. Importantly, the test dataset is not changed and will only be used for the quiz results generation.
@@ -65,36 +65,33 @@ Firstly, we are gonna clean the NA variables and identification variables. Impor
 # near zero variance
 nzv = nearZeroVar(train.set)
 train.set = train.set[, -nzv]
-test.set = test.set[, -nzv]
 
 # check dataset
-dim(train.set); dim(test.set)
+dim(train.set)
 ```
 
-There are 52 variables as near zero variance, which are meaningless for modeling.
+The variables as near zero variance are meaningless for modeling.
 
 ```{r}
 # mostly NA variable
 near.na = sapply(train.set, function(x) mean(is.na(x))) > 0.95
 train.set = train.set[, near.na == F]
-test.set = test.set[, near.na == F]
 
 # check dataset
-dim(train.set); dim(test.set)
+dim(train.set)
 ```
 
-There are 7 variables as mostly NA variable, which are useless for modeling.
+The variables as mostly NA variables are useless for modeling.
 
 ```{r}
 # identification variable
 train.set = train.set[, -c(1:5)]
-test.set = test.set[, -c(1:5)]
 
 # check dataset
-dim(train.set); dim(test.set)
+dim(train.set)
 ```
 
-AFter cleaning, we can see the ready-to-analysis dataset has 53 variables as independent and 1 variable as dependent.
+The variable as identification variables are pointless for modeling. After cleaning, we can see the ready-to-analysis dataset has 53 variables as independent and 1 variable as dependent.
 
 ### d. Exploring Data Analysis
 
@@ -113,20 +110,15 @@ We are gonna use three methods to build up models and even stack them together. 
 ### a. Random Forest
 
 ```{r}
-# fit model
-fit.rf = train(data = train.set,
+# train model
+mod.rf = train(data = train.set,
                classe ~ .,
                method = "rf",
                trControl = trainControl(method = "cv",
-                                        number = 3,
-                                        verboseIter = FALSE))
+                                        number = 3))
 
-# train model
-mod.rf = fit.rf$finalModel
-mod.rf
-
-# test model
-pred.rf = predict(fit.rf, newdata = test.set)
+# test model & validate model
+pred.rf = predict(mod.rf, newdata = test.set)
 
 # evaluate model
 cm.rf = confusionMatrix(table(pred.rf, test.set$classe))
@@ -142,22 +134,19 @@ plot(cm.rf$table, col = cm.rf$byClass,
 ### b. Decision Tree
 
 ```{r}
-# fit model
-fit.dt = train(data = train.set,
+# train model
+mod.dt = train(data = train.set,
                classe ~ .,
                method = "rpart",
                trControl = trainControl(method = "cv",
                                         number = 3,
-                                        verboseIter = FALSE))
+                                        verboseIter = F))
+fancyRpartPlot(mod.dt$finalModel) # decision tree plot (optional)
 
-# train model
-mod.dt = fit.dt$finalModel
-# fancyRpartPlot(mod.dt) # optional
+# test model & validate model
+pred.dt = predict(mod.dt, newdata = test.set)
 
-# test model
-pred.dt = predict(fit.dt, newdata = test.set)
-
-# evaluate model
+# evaluate model on validate
 cm.dt = confusionMatrix(table(pred.dt, test.set$classe))
 
 # plot matrix result
@@ -171,22 +160,18 @@ plot(cm.dt$table, col = cm.dt$byClass,
 ### c. Generalized Boosted Model
 
 ```{r}
-# fit model
-fit.gbm = train(data = train.set,
+# train model
+mod.gbm = train(data = train.set,
                 classe ~ .,
                 method = "gbm",
-                trControl = trainControl(method = "repeatedcv",
-                                         number = 5,
-                                         repeats = 1,
-                                         verboseIter = FALSE))
+                trControl = trainControl(method = "cv",
+                                         number = 3),
+                verbose = F)
 
-# train model
-mod.gbm = fit.gbm$finalModel
+# test model & validate model
+pred.gbm = predict(mod.gbm, newdata = test.set)
 
-# test model
-pred.gbm = predict(fit.gbm, newdata = test.set)
-
-# evaluate model
+# evaluate model on validate
 cm.gbm = confusionMatrix(table(pred.gbm, test.set$classe))
 
 # plot matrix result
@@ -197,17 +182,17 @@ plot(cm.gbm$table, col = cm.gbm$byClass,
      ylab = "Reference")
 ```
 
-## 4. Model Building
+## 5. Model Applying on Test Dataset
 
 The accuracy of the 3 modeling methods above are:
 
-- Random Forest (0.9973)
-- Decision Tree (0.4901)
-- Generalized Boosted Model (0.9866)
+- Random Forest (0.9986)
+- Decision Tree (0.5694)
+- Generalized Boosted Model (0.9845)
 
 ```{r}
-pred.test = predict(fit.rf, newdata = test)
+pred.test = predict(mod.rf, newdata = test)
 pred.test
 ```
 
-The random forest model will be applied to predict the 20 quiz results as shown above.
+The random forest model will be applied to predict the 20 quiz results as shown above. We also used the stacking model strategy, but it was not working well with a classficiation model. Also, the accuracy was not improving.
