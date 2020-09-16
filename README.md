@@ -1,3 +1,6 @@
+# Repository
+coursera_practicalmachinelearning_practicalassignmentwriteup_09152020 (place_thing_object_time)
+
 # Coursera Project
 Coursera - Data Science Specialization - Johns Hopkins University
 
@@ -9,9 +12,6 @@ This repository contains the material that is needed to perform and publish the 
 
 - README.md  
 It contains the knowledge of this repository.
-
-- coursera_pml.Rproj  
-It contains the working environment setting.
 
 - Prediction Assignment Writeup.Rmd  
 It contains the analysis and the associated text that explains things.
@@ -26,4 +26,4 @@ It is the dataset for training.
 It is the dataset for testing.
 
 This project is published at:  
-Link...
+https://rpubs.com/cxh190001/660853
